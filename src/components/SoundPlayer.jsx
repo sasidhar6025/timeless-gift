@@ -225,11 +225,44 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
             <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 8 }}>Browser blocked autoplay. Click enable to allow ambient music.</div>
             {lastPlayError && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Error: {lastPlayError}</div>}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => {
+              <button onClick={async () => {
                 try {
                   const audio = audioRef.current;
                   if (!audio) return;
-                  audio.play().then(() => { setPlaying(true); setAutoplayBlocked(false); }).catch((err) => { setLastPlayError(err && err.message ? String(err.message) : String(err)); });
+                  // resume AudioContext if present (user gesture required on some browsers)
+                  try {
+                    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+                      await audioCtxRef.current.resume();
+                      console.debug('AudioContext resumed');
+                    }
+                  } catch (resumeErr) { console.debug('resume audioCtx failed', resumeErr); }
+
+                  // unmute and try to play
+                  try { audio.muted = false; } catch (e) { console.debug('unmute attempt failed', e); }
+                  const p = audio.play();
+                  if (p && p.then) {
+                    p.then(() => {
+                      setPlaying(true);
+                      setAutoplayBlocked(false);
+                      setLastPlayError(null);
+                      // if routed through WebAudio, ramp gain for a smooth audible start
+                      try {
+                        const ctx = audioCtxRef.current;
+                        const g = musicGainRef.current;
+                        if (ctx && g && g.gain && typeof g.gain.setValueAtTime === 'function') {
+                          const now = ctx.currentTime;
+                          try { g.gain.setValueAtTime(0, now); } catch { /* some browsers require different scheduling; ignore */ }
+                          try { g.gain.linearRampToValueAtTime(volume, now + 0.6); } catch (e) { console.debug('gain ramp failed', e); }
+                        }
+                      } catch (err) { console.debug('ramp failed', err); }
+                    }).catch((err) => {
+                      setLastPlayError(err && err.message ? String(err.message) : String(err));
+                    });
+                  } else {
+                    // no promise, assume playing
+                    setPlaying(true);
+                    setAutoplayBlocked(false);
+                  }
                 } catch (err) { setLastPlayError(err && err.message ? String(err.message) : String(err)); }
               }} style={{ padding: '8px 12px', borderRadius: 8, background: '#1f1f1f', color: '#fff', border: 'none', cursor: 'pointer' }}>Enable audio</button>
               <button onClick={() => { setAutoplayBlocked(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}>Dismiss</button>
