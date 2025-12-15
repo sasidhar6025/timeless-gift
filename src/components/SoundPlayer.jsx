@@ -20,6 +20,8 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
     }
   });
   const audioRef = useRef(null);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [lastPlayError, setLastPlayError] = useState(null);
   const audioCtxRef = useRef(null);
   const musicGainRef = useRef(null);
   const fullAudioRef = useRef(null);
@@ -67,15 +69,22 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
     if (playing) {
       audio.muted = true; // try muted autoplay first
       const p = audio.play();
-      if (p && p.catch) p.catch(() => {
-        // autoplay blocked, unmute and wait for user gesture
-        audio.muted = false;
-      }).then(() => {
-        // if autoplay succeeded while muted, unmute after a short delay
-        setTimeout(() => { try { audio.muted = false; } catch (e) { console.error('unmute failed', e); } }, 300);
-      });
+      if (p && p.then) {
+        p.then(() => {
+          setAutoplayBlocked(false);
+          // if autoplay succeeded while muted, unmute after a short delay
+          setTimeout(() => { try { audio.muted = false; } catch (e) { console.error('unmute failed', e); } }, 300);
+        }).catch((err) => {
+          // autoplay blocked by browser policy
+          setAutoplayBlocked(true);
+          setLastPlayError(err && err.message ? String(err.message) : String(err));
+          try { audio.muted = false; } catch (e) { console.debug('unmute failed', e); }
+        });
+      } else {
+        // no promise returned; assume playing
+      }
     } else {
-      audio.pause();
+      try { audio.pause(); } catch (e) { console.debug('pause failed', e); }
     }
   }, [playing, volume]);
 
@@ -161,14 +170,37 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
   }
 
   return (
-    <div className="sound-player" style={{ position: "fixed", right: 12, bottom: 12, zIndex: 9999, display: "flex", gap: 8, alignItems: "center" }}>
-      <audio ref={audioRef} src={src} preload="auto" aria-label={title} />
-      <button onClick={() => setPlaying((p) => !p)} aria-pressed={playing} style={{ padding: "6px 10px", borderRadius: 8 }}>
-        {playing ? "Pause" : "Play"}
-      </button>
-      <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} aria-label="Volume" />
-      </label>
-    </div>
+    <>
+      <div className="sound-player" style={{ position: "fixed", right: 12, bottom: 12, zIndex: 9999, display: "flex", gap: 8, alignItems: "center" }}>
+        <audio ref={audioRef} src={src} preload="auto" aria-label={title} />
+        <button onClick={() => setPlaying((p) => !p)} aria-pressed={playing} style={{ padding: "6px 10px", borderRadius: 8 }}>
+          {playing ? "Pause" : "Play"}
+        </button>
+        <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} aria-label="Volume" />
+        </label>
+      </div>
+
+      {/* If autoplay is blocked on deployed site, show a small overlay to request user gesture */}
+      {autoplayBlocked && (
+        <div style={{ position: 'fixed', right: 12, bottom: 80, zIndex: 12000 }}>
+          <div style={{ background: 'rgba(0,0,0,0.8)', color: '#fff', padding: 12, borderRadius: 10, minWidth: 220 }}>
+            <div style={{ marginBottom: 8, fontWeight: 600 }}>Audio blocked</div>
+            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 8 }}>Browser blocked autoplay. Click enable to allow ambient music.</div>
+            {lastPlayError && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Error: {lastPlayError}</div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => {
+                try {
+                  const audio = audioRef.current;
+                  if (!audio) return;
+                  audio.play().then(() => { setPlaying(true); setAutoplayBlocked(false); }).catch((err) => { setLastPlayError(err && err.message ? String(err.message) : String(err)); });
+                } catch (err) { setLastPlayError(err && err.message ? String(err.message) : String(err)); }
+              }} style={{ padding: '8px 12px', borderRadius: 8, background: '#1f1f1f', color: '#fff', border: 'none', cursor: 'pointer' }}>Enable audio</button>
+              <button onClick={() => { setAutoplayBlocked(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}>Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
