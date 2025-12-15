@@ -125,9 +125,12 @@ export default function App() {
           <MessageCard key={m.id} title={m.title} onClick={() => {
             // user gesture: open message and trigger music play event + chime
             setActive(m);
-            try { window.dispatchEvent(new Event('timeless:play')); } catch (e) { console.error('play dispatch failed', e); }
-            try { window.dispatchEvent(new Event('timeless:playFull')); } catch (e) { console.error('playFull dispatch failed', e); }
+            //try { window.dispatchEvent(new Event('timeless:play')); } catch (e) { console.error('play dispatch failed', e); }
+            //try { window.dispatchEvent(new Event('timeless:playFull')); } catch (e) { console.error('playFull dispatch failed', e); }
             // add a body class to animate greeting-card open
+             if (window.__timelessAudio?.play) {
+                window.__timelessAudio.play();
+            }
             document.documentElement.classList.add('greeting-open');
           }} />
         ))}
