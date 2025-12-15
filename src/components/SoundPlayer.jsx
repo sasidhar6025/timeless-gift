@@ -26,6 +26,7 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
   const musicGainRef = useRef(null);
   const fullAudioRef = useRef(null);
   const fullAudioTimeoutRef = useRef(null);
+  const [audioStatus, setAudioStatus] = useState({ readyState: null, networkState: null, duration: null });
 
   useEffect(() => {
     try {
@@ -140,6 +141,41 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
     };
   }, [src]);
 
+  // attach audio element event listeners to capture errors and status for deployed debugging
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onError = (e) => {
+      try {
+        const err = audio.error;
+        const msg = err ? `code:${err.code} message:${err.message || 'unknown'}` : (e && e.type) || 'audio error';
+        setLastPlayError(msg);
+        console.debug('audio error', msg, audio.currentSrc);
+      } catch (ee) { console.debug('audio error handler failed', ee); }
+    };
+    const onPlaying = () => {
+      setAutoplayBlocked(false);
+      setLastPlayError(null);
+      setAudioStatus({ readyState: audio.readyState, networkState: audio.networkState, duration: audio.duration });
+      console.debug('audio playing', audio.currentSrc);
+    };
+    const onPlayEvent = () => setAudioStatus((s) => ({ ...s, readyState: audio.readyState }));
+    const onLoaded = () => setAudioStatus((s) => ({ ...s, readyState: audio.readyState, duration: audio.duration }));
+    audio.addEventListener('error', onError);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('play', onPlayEvent);
+    audio.addEventListener('loadedmetadata', onLoaded);
+    audio.addEventListener('stalled', () => { console.debug('audio stalled'); setLastPlayError('stalled'); });
+    return () => {
+      try {
+        audio.removeEventListener('error', onError);
+        audio.removeEventListener('playing', onPlaying);
+        audio.removeEventListener('play', onPlayEvent);
+        audio.removeEventListener('loadedmetadata', onLoaded);
+      } catch (err) { console.debug('remove listeners failed', err); }
+    };
+  }, [src]);
+
   useEffect(() => {
     try {
       localStorage.setItem(`${STORAGE_KEY}.vol`, String(volume));
@@ -197,6 +233,22 @@ export default function SoundPlayer({ src = "/sound/ambient.mp3", title = "Ambie
                 } catch (err) { setLastPlayError(err && err.message ? String(err.message) : String(err)); }
               }} style={{ padding: '8px 12px', borderRadius: 8, background: '#1f1f1f', color: '#fff', border: 'none', cursor: 'pointer' }}>Enable audio</button>
               <button onClick={() => { setAutoplayBlocked(false); }} style={{ padding: '8px 12px', borderRadius: 8, background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' }}>Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Debug panel for deployed troubleshooting */}
+      {(autoplayBlocked || lastPlayError || !available) && (
+        <div style={{ position: 'fixed', right: 12, bottom: 180, zIndex: 12000 }}>
+          <div style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: 10, borderRadius: 8, minWidth: 260 }}>
+            <div style={{ fontSize: 13, marginBottom: 6, fontWeight: 600 }}>Audio debug</div>
+            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>src: <span style={{ opacity: 0.95 }}>{src}</span></div>
+            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>readyState: {audioStatus.readyState ?? 'n/a'}</div>
+            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 6 }}>networkState: {audioStatus.networkState ?? 'n/a'}</div>
+            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 8 }}>duration: {audioStatus.duration ? `${Math.round(audioStatus.duration)}s` : 'unknown'}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => window.open(src, '_blank')} style={{ padding: '6px 10px', borderRadius: 6 }}>Open audio</button>
+              <button onClick={() => { try { fetch(src, { method: 'HEAD' }).then(r => { alert('HEAD: ' + r.status); }).catch(e => { alert('HEAD failed: ' + e.message); }); } catch (e) { alert('check failed: ' + e.message); } }} style={{ padding: '6px 10px', borderRadius: 6 }}>Check URL</button>
             </div>
           </div>
         </div>
