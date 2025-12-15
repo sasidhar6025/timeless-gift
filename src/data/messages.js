@@ -105,7 +105,7 @@ If there's someone in the {{Family}} you need to forgive — or if you need to f
     title: "Open when you want to create",
     color: "#fef3c7",
     content: `
-Your creativity ripples through the {{Family}}. When you make, {{Isha}} learns that play and work can be gentle companions; {{SISTER}} remembers the old habit of making for the joy of it.
+Your creativity ripples through the {{Family}}. When you make, {{Isha}} learns that play and work can be gentle companions; {{Akkayya}} remembers the old habit of making for the joy of it.
 
  Create something small today for someone: a note for {{Isha}}, a photo for {{Amma}}, or a silly message for {{Bava}}. The act matters more than the finish.
     `
@@ -138,7 +138,7 @@ When you notice something that went right, even a little, pass it on to the {{Fa
     title: "Open when you need to laugh",
     color: "#fff0f6",
     content: `
-If you need to laugh, call {{SISTER}} or ask {{BROTHER_IN_LAW}} for the worst joke they know. {{Isha}}'s giggle is contagious — let it spread.
+If you need to laugh, call {{Akkayya}} or ask {{Bava}} for the worst joke they know. {{Isha}}'s giggle is contagious — let it spread.
 
  Laughter is a {{Family}} language. Use it generously.
     `

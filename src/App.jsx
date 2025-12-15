@@ -135,7 +135,8 @@ export default function App() {
   {active && <MessageModal message={active} savor={savor} onClose={() => { setActive(null); try { window.dispatchEvent(new Event('timeless:pause')); } catch (e) { console.error('pause dispatch failed', e); } document.documentElement.classList.remove('greeting-open'); }} />}
 
         <SecretImage />
-        <SoundPlayer src="/sound/ambient.mp3" />
+  {/* use Vite base URL so the sound path resolves correctly in deployed apps hosted on subpaths */}
+  <SoundPlayer src={`${import.meta.env.BASE_URL}sound/ambient.mp3`} />
         {showAudioPrompt && (
           <div style={{ position: 'fixed', left: 20, bottom: 80, zIndex: 9999, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '10px 14px', borderRadius: 8 }}>
             <div style={{ marginBottom: 6 }}>Enable background music for a gentler ambience.</div>
